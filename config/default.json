@@ -1,0 +1,10 @@
+{
+  "redis": {
+    "host": "localhost"
+  },
+  "mongodb":{
+    "host": "localhost",
+    "port": "27017",
+    "db": "sard"
+  }
+}
