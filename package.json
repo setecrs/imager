@@ -2,9 +2,12 @@
   "name": "devnotify",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "imager.js",
   "scripts": {
-    "start": "node index.js",
+    "udevinstall": "bash install.sh",
+    "start": "node imager.js",
+    "check": "node check.js",
+    "register": "node register.js",
     "notify": "node notify.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

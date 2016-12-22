@@ -3,8 +3,9 @@
 const mongoose = require('mongoose')
 mongoose.Promise = require('bluebird')
 const wagner = require('wagner-core')
+const config = require('config')
 
-wagner.factory('mongoose', (config) => {
+wagner.factory('mongoose', () => {
   let url = `mongodb://${config.mongodb.host}:${config.mongodb.port}/${config.mongodb.db}`
   let connectWithRetry = () => {
     return mongoose.connect(url, function (err) {
