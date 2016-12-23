@@ -21,5 +21,6 @@ COPY config config/
 COPY imager imager/
 COPY lib lib/
 COPY models models/
+RUN ./install.sh
 
 CMD npm start
