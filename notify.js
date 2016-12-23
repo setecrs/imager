@@ -11,6 +11,7 @@ process.stdin.on('data', chunk => {
 
 process.stdin.on('end', () => {
   setTimeout(function () {
+    client.quit()
     process.exit(0)
   }, 10)
 })
