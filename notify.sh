@@ -4,4 +4,4 @@ if [ ! -e node_modules ]
 then
   npm install
 fi
-(echo SIZE="$1" ; env) | npm run notify
+(echo SIZE="$1" ; env) | bash -lc 'npm run notify'
