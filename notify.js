@@ -14,5 +14,5 @@ process.stdin.on('end', () => {
     client.quit(() => {
       process.exit(0)
     })
-  }, 10)
+  }, 1000)
 })
