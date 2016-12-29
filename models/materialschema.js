@@ -13,6 +13,11 @@ wagner.factory('materialSchema', (mongoose) => {
     ipl: { type: Number, min: 130000, max: (new Date().getFullYear() - 2000 + 1) * 10000 - 1 },
     ipl_suffix: String,
     path: String,
+    state: {
+      type: String,
+      enum: ['hold', 'todo', 'running', 'done', 'failed'],
+      default: 'hold'
+    },
     properties: {}
   })
   schema.set('collection', 'material')

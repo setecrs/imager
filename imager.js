@@ -9,6 +9,13 @@ onDevice((device, docs) => {
   } else if (docs.length === 1) {
     let doc = docs[0]
     runimager(device, doc)
+    .then(() => {
+      doc.state = 'todo'
+      return doc.save()
+    })
+    .then((doc) => {
+      console.log('Ok', doc.material)
+    })
   } else {
     console.log('Multiples entries found matching current device:')
     docs.forEach(doc => {

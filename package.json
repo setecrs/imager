@@ -9,7 +9,8 @@
     "check": "node check.js",
     "register": "node register.js",
     "notify": "node notify.js",
-    "dumb": "node lib/dumb.js",
+    "single": "node single.js",
+    "dumb": "node dumb.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",

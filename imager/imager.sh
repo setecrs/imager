@@ -21,7 +21,7 @@ BS=${BS:-$_BS}
 
 (( $OK )) || exit 1
 
-(( ${PARALLELHASH:-1} ))  && _parallelhash
+(( ${PARALLELHASH:-0} ))  && _parallelhash
 (( ${HASHDCFLDD:-0} ))    && _hashdcfldd
 
 (( ${LOG:-1} ))           && _imager.log
