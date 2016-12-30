@@ -1,1 +1,1 @@
-ACTION=="add", SUBSYSTEM=="block", DRIVER=="", RUN+="/root/imager/notify.sh $attr{size}"
+ACTION=="add|change", SUBSYSTEM=="block", DRIVER=="", RUN+="/root/imager/notify.sh $attr{size}"
