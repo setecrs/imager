@@ -5,7 +5,7 @@
   "main": "imager.js",
   "scripts": {
     "udevinstall": "bash install.sh",
-    "start": "node imager.js",
+    "start": "node lib/server.js",
     "check": "node check.js",
     "register": "node register.js",
     "notify": "node notify.js",
@@ -17,9 +17,11 @@
   "license": "GPL-3.0",
   "dependencies": {
     "bluebird": "^3.4.6",
+    "body-parser": "^1.17.1",
     "chai": "^3.5.0",
     "config": "^1.24.0",
     "debug": "^2.6.0",
+    "express": "^4.15.2",
     "fs-extra": "^1.0.0",
     "lockfile": "^1.0.3",
     "mocha": "^3.1.2",
