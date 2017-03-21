@@ -1,4 +1,4 @@
-FROM alpine:3.4
+FROM alpine:edge
 
 RUN apk add --no-cache \
       git \
@@ -8,8 +8,9 @@ RUN apk add --no-cache \
       bash \
       tmux \
       hdparm \
-      nodejs
-RUN apk add --no-cache ddrescue --repository http://nl.alpinelinux.org/alpine/edge/testing
+      ddrescue \
+      nodejs \
+      nodejs-npm
 
 WORKDIR /root/imager
 COPY package.json ./
@@ -20,7 +21,7 @@ COPY ./[^/]*.* ./
 COPY config config/
 COPY imager imager/
 COPY lib lib/
-COPY models models/
+COPY frontend frontend/
 RUN ./install.sh
 
 CMD npm start
