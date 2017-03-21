@@ -7,5 +7,6 @@
     "port": "27017",
     "db": "sard"
   },
-  "listenport": "8081"
+  "listenaddress": "0.0.0.0",
+  "listenport": "80"
 }

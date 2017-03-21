@@ -38,7 +38,7 @@ angular.module('app').directive(
       controller: function ($scope) {
         this.showFind = false
         this.update = () => {
-          $http.get('http://localhost:8081/api/')
+          $http.get('./api/')
           .then((response) => {
             this.devices = response.data
           })
@@ -48,7 +48,7 @@ angular.module('app').directive(
         }
         $interval(this.update, 2000)
         this.action = (action, device, material) => {
-          $http.get(`http://localhost:8081/api/${device.id}/${action}/?material=${material}`)
+          $http.get(`./api/${device.id}/${action}/?material=${material}`)
           .then((response) => {
             this.message = response.data
           })
@@ -76,7 +76,7 @@ angular.module('app').directive('deviceList', function ($http) {
       </ul>
     </div>`,
     link: function (scope, element, attrs) {
-      $http.get(`http://localhost:8081/api/${scope.device.id}/list`)
+      $http.get(`./api/${scope.device.id}/list`)
       .success((data) => {
         scope.data = data
       })
