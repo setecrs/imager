@@ -66,7 +66,7 @@ angular.module('app').directive('deviceList', function ($http) {
     },
     template: `
     <div>
-      <button class="btn btn-primary" ng-click="deviceCtrl.click()">Find</button>
+      <button class="btn btn-primary" ng-click="deviceCtrl.update()">Find</button>
     </div>
     <div ng-repeat="item in data">
       <h4>{{item.material}}</h4>
@@ -77,15 +77,13 @@ angular.module('app').directive('deviceList', function ($http) {
       </ul>
     </div>`,
     controller: function ($http, $scope) {
-      this.click = () => {
-        this.update()
-      }
       this.update = () => {
         $http.get(`./api/${$scope.device.id}/list`)
         .success((data) => {
           $scope.data = data
         })
       }
+      this.update()
     },
     controllerAs: 'deviceCtrl'
   }
