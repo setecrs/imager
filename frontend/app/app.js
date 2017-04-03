@@ -9,16 +9,14 @@ angular.module('app').directive(
       template: `<ul class="list-group">
         <li class="list-group-item" ng-repeat="device in devicesCtrl.devices">
           <h4>{{device.path}}
-            {{device.properties.SIZE*512 /(1024*1024*1024) | number:1}}GiB
+            {{device.properties.udev.SIZE*512 /(1024*1024*1024) | number:1}}GiB
             {{material}}
           </h4>
           <div class="container">
-            <div ng-repeat="(k,v) in device.properties">{{k}}: {{v}}</div>
+            <div ng-repeat="(k,v) in device.properties.udev">udev {{k}}: {{v}}</div>
+            <div ng-repeat="(k,v) in device.properties.smart">smart {{k}}: {{v}}</div>
             <div>Status:
               <pre>{{device.status | json}}</pre>
-            </div>
-            <div>
-              <button class="btn btn-primary" ng-click="showFind = !showFind">Find</button>
             </div>
             <device-list device="device" ng-show="showFind"></device-list>
             Material: <input ng-model="material">
@@ -33,8 +31,6 @@ angular.module('app').directive(
         <pre>{{devicesCtrl.message | json}}</pre>
       </ul>`,
       link: function (scope, elem, attrs) {
-        $interval(function () {
-        }, 2000)
       },
       controller: function ($scope) {
         this.showFind = false
@@ -68,7 +64,11 @@ angular.module('app').directive('deviceList', function ($http) {
     scope: {
       device: '='
     },
-    template: `<div ng-repeat="item in data">
+    template: `
+    <div>
+      <button class="btn btn-primary" ng-click="showFind = !showFind">Find</button>
+    </div>
+    <div ng-repeat="item in data">
       <h4>{{item.material}}</h4>
       <ul>
         <li ng-repeat="(k,v) in item">
@@ -77,10 +77,19 @@ angular.module('app').directive('deviceList', function ($http) {
       </ul>
     </div>`,
     link: function (scope, element, attrs) {
-      $http.get(`./api/${scope.device.id}/list`)
-      .success((data) => {
-        scope.data = data
-      })
-    }
+    },
+    controller: function ($http) {
+      this.click = () => {
+        this.update()
+        this.showFind = !this.showFind
+      }
+      this.update = () => {
+        $http.get(`./api/${this.device.id}/list`)
+        .success((data) => {
+          this.scope.data = data
+        })
+      }
+    },
+    controllerAs: 'deviceCtrl'
   }
 })
