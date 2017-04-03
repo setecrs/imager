@@ -18,7 +18,7 @@ angular.module('app').directive(
             <div>Status:
               <pre>{{device.status | json}}</pre>
             </div>
-            <device-list device="device" ng-show="showFind"></device-list>
+            <device-list device="device"></device-list>
             Material: <input ng-model="material">
             <div>
               <button class="btn btn-primary" ng-click="devicesCtrl.action('check',device, material)">Check</button>
@@ -66,7 +66,7 @@ angular.module('app').directive('deviceList', function ($http) {
     },
     template: `
     <div>
-      <button class="btn btn-primary" ng-click="showFind = !showFind">Find</button>
+      <button class="btn btn-primary" ng-click="deviceCtrl.click()">Find</button>
     </div>
     <div ng-repeat="item in data">
       <h4>{{item.material}}</h4>
@@ -76,17 +76,14 @@ angular.module('app').directive('deviceList', function ($http) {
         </li>
       </ul>
     </div>`,
-    link: function (scope, element, attrs) {
-    },
-    controller: function ($http) {
+    controller: function ($http, $scope) {
       this.click = () => {
         this.update()
-        this.showFind = !this.showFind
       }
       this.update = () => {
-        $http.get(`./api/${this.device.id}/list`)
+        $http.get(`./api/${$scope.device.id}/list`)
         .success((data) => {
-          this.scope.data = data
+          $scope.data = data
         })
       }
     },
