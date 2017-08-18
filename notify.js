@@ -52,8 +52,9 @@ function getSmartData (path) {
       if (x) {
         let splited = x.split(':')
         if (splited.length > 1) {
-          if (!splited[0].endsWith(' is')) {
-            result[splited[0]] = splited.splice(1).join(':').trim()
+          const key = splited[0].replace('.', '_')
+          if (!key.endsWith(' is')) {
+            result[key] = splited.splice(1).join(':').trim()
           }
         }
       }
