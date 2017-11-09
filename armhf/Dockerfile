@@ -1,4 +1,4 @@
-FROM arm32v6/alpine:edge
+FROM arm32v6/alpine
 
 RUN apk add --no-cache \
       git \
@@ -16,7 +16,7 @@ WORKDIR /root/imager
 COPY ../package.json ./
 RUN npm install
 
-COPY ..git .git
+COPY ../.git .git
 COPY ../[^/]*.* ./
 COPY ../config config/
 COPY ../imager imager/
