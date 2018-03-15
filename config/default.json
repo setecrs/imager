@@ -8,5 +8,6 @@
     "db": "sard"
   },
   "listenaddress": "0.0.0.0",
-  "listenport": "80"
+  "listenport": "80",
+  "EVENTS_URL": "http://iped-queue-events:80/"
 }
