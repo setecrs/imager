@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"log"
 	"net/http"
 	"os"
 )
@@ -20,6 +21,9 @@ type Message struct {
 }
 
 func main() {
+	if len(os.Args) < 2 {
+		log.Fatalf("Use %s URL SIZE\n", os.Args[0])
+	}
 	size := "0"
 	if len(os.Args) > 2 {
 		size = os.Args[2]

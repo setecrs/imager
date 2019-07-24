@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
 	"unicode"
 
 	"github.com/gorilla/mux"
@@ -23,119 +22,101 @@ type Device struct {
 	Model         string
 	SerialShort   string
 	FsUUID        string
+	Percent       int
+	Error         error
 }
 
 type Config struct {
-	Devices    map[string]Device
-	UdevListen string
-	Port       string
+	Devices map[string]Device
 }
 
 func main() {
 	cnf := Config{
-		Devices:    make(map[string]Device),
-		UdevListen: "localhost:8080",
-		Port:       "localhost:8081",
+		Devices: make(map[string]Device),
 	}
-	cnf.Devices["sdh"] = Device{
-		Devname: "/dev/sdh",
-		Size:    "10",
+	udevListen := "localhost:8080"
+	if s, ok := os.LookupEnv("UDEV_LISTEN"); ok {
+		udevListen = s
 	}
-	if udevListen, ok := os.LookupEnv("UDEV_LISTEN"); ok {
-		cnf.UdevListen = udevListen
+	port := "localhost:8081"
+	if s, ok := os.LookupEnv("PORT"); ok {
+		port = s
 	}
 	r := mux.NewRouter()
 	r.HandleFunc("/", cnf.udevHandler)
-	go http.ListenAndServe(cnf.UdevListen, r)
+	go http.ListenAndServe(udevListen, r)
 
 	r2 := mux.NewRouter()
-	r2.HandleFunc("/devices/{device}/{action}", cnf.actionHandler)
-	r2.HandleFunc("/devices/{device}", cnf.deviceHandler)
-	r2.HandleFunc("/devices/", cnf.listDevicesHandler)
-	r2.HandleFunc("/materiais/{id}", cnf.listMateriaisHandler)
-	r2.PathPrefix("/").Handler(http.FileServer(http.Dir("frontend")))
-	log.Fatal(http.ListenAndServe(cnf.Port, r2))
+	r2.StrictSlash(true)
+	r2.HandleFunc("/devices/{device}/start", cnf.startHandler).Methods("POST")
+	r2.HandleFunc("/devices/{device}", cnf.deviceHandler).Methods("GET")
+	r2.HandleFunc("/devices", cnf.listDevicesHandler).Methods("GET")
+	r2.HandleFunc("/find/{material}", cnf.findMaterialHandler).Methods("GET")
+	r2.PathPrefix("/").Handler(http.FileServer(http.Dir("app/build")))
+	log.Fatal(http.ListenAndServe(port, r2))
 }
-func (cnf *Config) actionHandler(w http.ResponseWriter, r *http.Request) {
+func (cnf *Config) startHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-	log.Println("action")
+	device, ok := mux.Vars(r)["device"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("could not decode parameter from request: device"))
+		return
+	}
+	d, ok := cnf.Devices["/dev/"+device]
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	b, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "could not read body request: %v", err)
+		return
+	}
+	data := struct {
+		Path string
+	}{}
+	err = json.Unmarshal(b, &data)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "could not parse json body: %v", err)
+		return
+	}
+	progress, chanErr, err := startImager(d.Devname, data.Path)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "error in startImaging: %v", err)
+		return
+	}
+	go func(progress chan int, d *Device) {
+		for i := range progress {
+			d.Percent = i
+		}
+	}(progress, &d)
+	go func(chanErr chan error, d *Device) {
+		d.Error = nil
+		for err := range chanErr {
+			d.Error = err
+		}
+	}(chanErr, &d)
+	return
 }
 
 func (cnf *Config) deviceHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-	log.Println("device")
-}
-
-func (cnf *Config) listMateriaisHandler(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-	id := mux.Vars(r)["id"]
-	q := fmt.Sprintf(`
-	query{
-		board(title:"Materiais") {
-		  customFields{
-			id: _id
-			name
-		  }
-		  lists {
-			card(title:"%s"){
-				id: _id
-				title
-				labelIds
-				customFields{
-					id: _id
-					value
-				}
-			}
-		  }
-		}
-	  }
-	`, id)
-	d := struct {
-		Errors []struct {
-			Message string
-		}
-		Data struct {
-			Boards []struct {
-				CustomFields []struct {
-					ID   string
-					Name string
-				}
-				Lists []struct {
-					Cards struct {
-						ID           string
-						Title        string
-						CustomFields []struct {
-							ID    string
-							Value string
-						}
-					}
-				}
-			}
-		}
-	}{}
-	err := cnf.query(q, &d)
-	if err != nil {
-		log.Printf("error in query: %v", err)
+	device, ok := mux.Vars(r)["device"]
+	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("could not decode parameter from request: device"))
 		return
 	}
-	if len(d.Errors) > 0 {
-		log.Printf("graphql error: %v", d.Errors[0].Message)
-		w.WriteHeader(http.StatusBadRequest)
+	d, ok := cnf.Devices["/dev/"+device]
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	resp := struct {
-		ID    string
-		Title string
-		Path  string
-	}{}
-	b, err := json.Marshal(resp)
-	if err != nil {
-		log.Printf("error making json: %v", err)
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	w.Write(b)
+	json.NewEncoder(w).Encode(d)
 }
 
 func (cnf *Config) listDevicesHandler(w http.ResponseWriter, r *http.Request) {
@@ -153,6 +134,16 @@ func (cnf *Config) listDevicesHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(b)
 }
 
+func (cnf *Config) findMaterialHandler(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	material, ok := mux.Vars(r)["material"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("could not decode parameter from request: material"))
+	}
+	log.Println("findMaterial", material)
+}
+
 func (cnf *Config) udevHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	d := Device{}
@@ -166,6 +157,9 @@ func (cnf *Config) udevHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (cnf *Config) processDevice(d Device) {
+	if d.Devname == "" {
+		return
+	}
 	runes := []rune(d.Devname)
 	last := runes[len(runes)-1]
 	if unicode.IsDigit(last) {
@@ -180,22 +174,4 @@ func (cnf *Config) processDevice(d Device) {
 	default:
 		log.Printf("action not known: '%s'\n", d.Action)
 	}
-}
-
-func (cnf *Config) query(q string, v interface{}) error {
-	// log.Println(q)
-	r, err := http.Post(cnf.GraphqlURL, "application/graphql", strings.NewReader(q))
-	if err != nil {
-		return err
-	}
-	defer r.Body.Close()
-	b, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		return err
-	}
-	err = json.Unmarshal(b, v)
-	if err != nil {
-		return err
-	}
-	return nil
 }

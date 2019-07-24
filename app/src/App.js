@@ -1,59 +1,82 @@
-import React, {Fragment, useState} from 'react';
+import React, {Fragment, useState, useEffect} from 'react';
 
 const App = () => {
   const [devices, setDevices] = useState([])
-  return <div>
+  useEffect(() => {
+    const ms = 1000
+    const interval = setInterval(() => {
+      updateDevices(setDevices)
+    }, ms)
+    return () => { clearInterval(interval)}
+  }, []) // use [] to run effect only once
+  return <Fragment>
     <div className="container">
       <div className="row">
         <h3>Total devices: {devices.length}
         </h3>
-        <button className="btn" onClick={() => updateDevices(setDevices)()}>Update</button>
       </div>
     </div>
     <div className="container">
       <div className="row">
-      <ul className='list-group'>
+      {/* <ul className='list-group'> */}
         {devices.map(x => (
-          <li key={x.Devname} className='list-group-item'>
-            <DevicesDetail
-              Devname={x.Devname}
-              Size={x.Size}
-              PartTableType={x.PartTableType}
-              PartTableUUID={x.PartTableUUID}
-              Vendor={x.Vendor}
-              Model={x.Model}
-              SerialShort={x.SerialShort}
-              FsUUID={x.FsUUID}
-            />
-            <DeviceButtons finder={(x) => alert(x)}/>
-          </li>
+          <div key={x.Devname} className='col-12 col-md-6 p-3 border rounded'>
+            <div className="container">
+              <DevicesDetail
+                Devname={x.Devname}
+                Size={x.Size}
+                PartTableType={x.PartTableType}
+                PartTableUUID={x.PartTableUUID}
+                Vendor={x.Vendor}
+                Model={x.Model}
+                SerialShort={x.SerialShort}
+                FsUUID={x.FsUUID}
+              />
+              <hr/>
+              <DeviceButtons start={(x) => alert(x)}/>
+            </div>
+          </div>
         ))}
-      </ul>
+      {/* </ul> */}
       </div>
     </div>
-  </div>
-}
-
-
-const updateDevices = setDevices => async () => {
-  const resp = await fetch('http://localhost:8081/api/')
-  const json = await resp.json()
-  setDevices(json)
-}
-
-
-
-const DeviceButtons = ({finder}) => {
-  const [value,setValue] = useState("")
-  return <Fragment>
-    <input
-      type="text"
-      placeholder="M190000"
-      value={value}
-      onChange={({target}) => {setValue(target.value)}}
-      />
-    <button onClick={() => finder(value)}>Find</button>
   </Fragment>
+}
+
+
+const updateDevices = setDevices => {
+  (async () => {
+    const resp = await fetch('http://localhost:8081/devices/')
+    const json = await resp.json()
+    setDevices(json)
+  })()
+}
+
+const DeviceButtons = ({start}) => {
+  const [value,setValue] = useState("")
+  const [canStart,setCanStart] = useState(false)
+
+  useEffect(()=>{
+    setCanStart(value!="")
+  }, [value])
+
+  return <div className="container">
+    <div className="row">
+      <textarea
+        rows={5}
+        placeholder="path"
+        value={value}
+        className="col"
+        onChange={({target}) => {setValue(target.value.replace(/[\r\n \t]/g,""))}}
+        />
+    </div>
+    <div className="row">
+      <button 
+        className="btn btn-success" 
+        disabled={!canStart}
+        onClick={() => start(value)}>Start</button>
+    </div>
+  </div>
 }
 
 const DevicesDetail = ({Devname,Size,PartTableType,PartTableUUID,Vendor,Model,SerialShort,FsUUID}) => (
