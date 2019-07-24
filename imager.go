@@ -5,14 +5,17 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path"
+	"time"
 
 	"github.com/pkg/errors"
 )
 
-func startImager(device, outPath string) (progress chan int, chanErr chan error, err error) {
+func startImager(device, outPath string, totalSize int64, resuming bool) (progress chan string, chanErr chan error, err error) {
 	if device == "" {
 		return nil, nil, fmt.Errorf("error: device == ''")
 	}
@@ -29,9 +32,11 @@ func startImager(device, outPath string) (progress chan int, chanErr chan error,
 		return nil, nil, err
 	}
 	defer lock.Close()
-	err = checkDuplicateImaging(device, outPath)
-	if err != nil {
-		return nil, nil, err
+	if !resuming {
+		err = checkDuplicateImaging(device, outPath)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 	err = saveSmartctl(device, outPath)
 	if err != nil {
@@ -41,22 +46,19 @@ func startImager(device, outPath string) (progress chan int, chanErr chan error,
 	if err != nil {
 		return nil, nil, err
 	}
-	err = saveComands([]*exec.Cmd{
-		exec.Command("bash", "-c", "seq 1 4 | while read i; do echo $i; sleep 1; done"),
-	}, "/tmp/1/teste.txt")
 	if err != nil {
 		return nil, nil, err
 	}
-	c, err := ddrescue(device, outPath)
+	p, err := ddrescue(device, outPath, totalSize)
 	if err != nil {
 		return nil, nil, err
 	}
-	progress = make(chan int)
+	progress = make(chan string)
 	chanErr = make(chan error)
-	go func(c <-chan int, progress chan int, chanErr chan error) {
+	go func(p <-chan string, progress chan string, chanErr chan error) {
 		defer close(chanErr)
-		for i := range c {
-			progress <- i
+		for s := range p {
+			progress <- s
 		}
 		close(progress)
 		err := saveLogs(outPath)
@@ -69,13 +71,30 @@ func startImager(device, outPath string) (progress chan int, chanErr chan error,
 			chanErr <- err
 			return
 		}
-	}(c, progress, chanErr)
+	}(p, progress, chanErr)
 	return progress, chanErr, nil
 }
 func prepareDir(outPath string) error {
 	outdir := path.Dir(outPath)
 	err := os.MkdirAll(outdir, 0755)
 	return err
+}
+
+func checkDuplicateImaging(device, outPath string) error {
+	outdir := path.Dir(outPath)
+	files := []string{
+		outPath,
+		path.Join(outdir, "smartctl.txt"),
+		path.Join(outdir, "udevinfo.txt"),
+		path.Join(outdir, "ddrescue.log"),
+		path.Join(outdir, "ddrescue.dmp"),
+	}
+	for _, file := range files {
+		if _, err := os.Stat(file); !os.IsNotExist(err) {
+			return errors.Wrap(os.ErrExist, file)
+		}
+	}
+	return nil
 }
 
 func saveSmartctl(device, outPath string) error {
@@ -86,7 +105,7 @@ func saveSmartctl(device, outPath string) error {
 		exec.Command("smartctl", "-s", "on", device),
 		exec.Command("smartctl", "-a", device),
 	}
-	return saveComands(commands, smartctlPath)
+	return saveCommands(commands, smartctlPath)
 }
 
 func saveUdevinfo(device, outPath string) error {
@@ -96,10 +115,10 @@ func saveUdevinfo(device, outPath string) error {
 		exec.Command("date"),
 		exec.Command("udevadm", "info", "--query=all", fmt.Sprintf("--name=%s", device)),
 	}
-	return saveComands(commands, udevinfoPath)
+	return saveCommands(commands, udevinfoPath)
 }
 
-func saveComands(commands []*exec.Cmd, outPath string) error {
+func saveCommands(commands []*exec.Cmd, outPath string) error {
 	out, err := os.OpenFile(outPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
@@ -130,46 +149,85 @@ func saveComands(commands []*exec.Cmd, outPath string) error {
 	return nil
 }
 
-func ddrescue(device, outPath string) (progress chan int, err error) {
+func ddrescue(device, outPath string, totalSize int64) (progress chan string, err error) {
 	outdir := path.Dir(outPath)
 	ddrescueLogPath := path.Join(outdir, "ddrescue.log")
 	ddrescueDmpPath := path.Join(outdir, "ddrescue.dmp")
 	commands := []*exec.Cmd{
 		exec.Command("ddrescue", device, outPath, ddrescueLogPath, "-r2", "-d"),
 	}
-	progress = make(chan int)
-	defer close(progress)
-	return progress, saveComands(commands, ddrescueDmpPath)
+	end := make(chan error)      // will close when ddrescue is done
+	progress = make(chan string) // will close after end is done
+	go func(progress chan string, end <-chan error) {
+		defer close(progress)
+		for {
+			select {
+			case err := <-end:
+				if err != nil {
+					progress <- err.Error()
+				}
+				return
+			case <-time.After(100 * time.Millisecond):
+				stat, err := os.Stat(outPath)
+				gib := float32(1024 * 1024 * 1024)
+				current := float32(stat.Size())
+				percent := current / float32(totalSize) * 100.0
+				msg := fmt.Sprintf("%1.0f%% (%1.0f GiB/ %1.0f GiB) %1.0f bytes", percent, current/gib, float32(totalSize)/gib, current)
+				if err != nil {
+					progress <- err.Error()
+					continue
+				}
+				progress <- msg
+			}
+		}
+	}(progress, end)
+	go func(end chan error) {
+		defer close(end)
+		err := saveCommands(commands, ddrescueDmpPath)
+		end <- err
+	}(end)
+	return progress, nil
 }
 
 func saveLogs(outPath string) error {
-	// _imager.log(){
-	// 	FILES="cd-info.txt read-toc.txt toc.txt ddrescue.log hashlog.* udevinfo.txt camcontrol.txt smartctl.txt dadoshd.txt ewfinfo.txt"
-	// 	(
-	// 	  cd "${OUTDIR}"
-	// 	  for f in `ls $FILES 2>/dev/null `
-	// 	  do
-	// 		echo '#######################'
-	// 		echo $f
-	// 		echo '#######################'
-	// 		cat $f
-	// 	  done | dd of=imager.log
-	// 	)
-	// 	}
-	return fmt.Errorf("not implemented")
+	outdir := path.Dir(outPath)
+	files := []string{
+		"ddrescue.log",
+		"udevinfo.txt",
+		"smartctl.txt",
+	}
+	out, err := os.Create(path.Join(outdir, "imager.log"))
+	defer out.Close()
+	if err != nil {
+		return err
+	}
+	for _, f := range files {
+		b, _ := ioutil.ReadFile(path.Join(outdir, f))
+		out.Write(b)
+		out.Write([]byte("\n"))
+	}
+	return nil
 }
 
 func setPermissions(outPath string) error {
-	// _permissions(){
-	// 	chmod a-w "${OUTFILE}" "${OUTDIR}"/*.*
-	// 	chmod a+rX "${OUTDIR}"
-	// 	}
-	return fmt.Errorf("not implemented")
-}
-
-func checkDuplicateImaging(device, outPath string) error {
-	if _, err := os.Stat(outPath); !os.IsNotExist(err) {
-		return os.ErrExist
+	outdir := path.Dir(outPath)
+	files := []string{
+		outPath,
+		path.Join(outdir, "ddrescue.dmp"),
+		path.Join(outdir, "ddrescue.log"),
+		path.Join(outdir, "udevinfo.txt"),
+		path.Join(outdir, "smartctl.txt"),
+		path.Join(outdir, "imager.log"),
+	}
+	for _, f := range files {
+		err := os.Chmod(f, 0444)
+		if err != nil {
+			log.Println(err)
+		}
+	}
+	err := os.Chmod(outdir, 0555)
+	if err != nil {
+		log.Println(err)
 	}
 	return nil
 }

@@ -7,6 +7,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
+	"strings"
 	"unicode"
 
 	"github.com/gorilla/mux"
@@ -22,17 +24,18 @@ type Device struct {
 	Model         string
 	SerialShort   string
 	FsUUID        string
-	Percent       int
-	Error         error
+	Error         string
+	Running       bool
+	Progress      string
 }
 
 type Config struct {
-	Devices map[string]Device
+	Devices map[string]*Device
 }
 
 func main() {
 	cnf := Config{
-		Devices: make(map[string]Device),
+		Devices: make(map[string]*Device),
 	}
 	udevListen := "localhost:8080"
 	if s, ok := os.LookupEnv("UDEV_LISTEN"); ok {
@@ -48,6 +51,7 @@ func main() {
 
 	r2 := mux.NewRouter()
 	r2.StrictSlash(true)
+	r2.HandleFunc("/devices/{device}/resume", cnf.startHandler).Methods("POST")
 	r2.HandleFunc("/devices/{device}/start", cnf.startHandler).Methods("POST")
 	r2.HandleFunc("/devices/{device}", cnf.deviceHandler).Methods("GET")
 	r2.HandleFunc("/devices", cnf.listDevicesHandler).Methods("GET")
@@ -57,6 +61,7 @@ func main() {
 }
 func (cnf *Config) startHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
+	resuming := strings.HasSuffix(r.URL.Path, "resume")
 	device, ok := mux.Vars(r)["device"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
@@ -83,23 +88,34 @@ func (cnf *Config) startHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "could not parse json body: %v", err)
 		return
 	}
-	progress, chanErr, err := startImager(d.Devname, data.Path)
+	totalSize, err := strconv.Atoi(d.Size)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "error in startImaging: %v", err)
+		fmt.Fprintf(w, "device size is wrong: %v", d.Size)
 		return
 	}
-	go func(progress chan int, d *Device) {
-		for i := range progress {
-			d.Percent = i
+	totalSize *= 512
+	d.Running = true
+	d.Error = ""
+	progress, chanErr, err := startImager(d.Devname, data.Path, int64(totalSize), resuming)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "error in startImager: %v", err)
+		d.Running = false
+		return
+	}
+	go func(progress chan string, d *Device) {
+		for s := range progress {
+			d.Progress = s
 		}
-	}(progress, &d)
+	}(progress, d)
 	go func(chanErr chan error, d *Device) {
-		d.Error = nil
+		d.Error = ""
 		for err := range chanErr {
-			d.Error = err
+			d.Error = err.Error()
 		}
-	}(chanErr, &d)
+		d.Running = false
+	}(chanErr, d)
 	return
 }
 
@@ -123,7 +139,7 @@ func (cnf *Config) listDevicesHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	devs := []Device{}
 	for _, v := range cnf.Devices {
-		devs = append(devs, v)
+		devs = append(devs, *v)
 	}
 	b, err := json.Marshal(devs)
 	if err != nil {
@@ -168,7 +184,7 @@ func (cnf *Config) processDevice(d Device) {
 	}
 	switch d.Action {
 	case "add", "change":
-		cnf.Devices[d.Devname] = d
+		cnf.Devices[d.Devname] = &d
 	case "remove":
 		delete(cnf.Devices, d.Devname)
 	default:
