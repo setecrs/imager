@@ -1,4 +1,4 @@
-import React, {Fragment, useState, useEffect} from 'react';
+import React, { Fragment, useState, useEffect } from 'react';
 
 const App = () => {
   const [devices, setDevices] = useState([])
@@ -7,7 +7,7 @@ const App = () => {
     const interval = setInterval(() => {
       updateDevices(setDevices)
     }, ms)
-    return () => { clearInterval(interval)}
+    return () => { clearInterval(interval) }
   }, []) // use [] to run effect only once
   return <Fragment>
     <div className="container">
@@ -18,8 +18,8 @@ const App = () => {
     </div>
     <div className="container">
       <div className="row">
-      {/* <ul className='list-group'> */}
-        {devices.sort((x,y)=>x.Devname>y.Devname?1:-1).map(x => (
+        {/* <ul className='list-group'> */}
+        {devices.sort((x, y) => x.Devname > y.Devname ? 1 : -1).map(x => (
           <div key={x.Devname} className='col-12 col-md-6 p-3 border rounded'>
             <div className="container">
               <DevicesDetail
@@ -35,20 +35,20 @@ const App = () => {
                 Running={x.Running}
                 Progress={x.Progress}
               />
-              <hr/>
+              <hr />
               <DeviceButtons
                 disabled={x.Running}
-                start={({path, resuming,onError}) => startImager({
+                start={({ path, resuming, onError }) => startImager({
                   path,
-                  fulldev:x.Devname,
+                  fulldev: x.Devname,
                   resuming,
                   onError,
                 })}
-                />
+              />
             </div>
           </div>
         ))}
-      {/* </ul> */}
+        {/* </ul> */}
       </div>
     </div>
   </Fragment>
@@ -63,28 +63,28 @@ const updateDevices = setDevices => {
   })()
 }
 
-const startImager = ({path, fulldev, resuming, onError}) => {
+const startImager = ({ path, fulldev, resuming, onError }) => {
   (async () => {
     const shortdev = fulldev.split("/dev/").pop()
-    const url = `/devices/${shortdev}/${resuming?"resume":"start"}`
+    const url = `/devices/${shortdev}/${resuming ? "resume" : "start"}`
     const resp = await fetch(url, {
       method: "POST",
-      body: JSON.stringify({path})
+      body: JSON.stringify({ path })
     })
     const text = await resp.text()
-    if (text){
+    if (text) {
       onError(text)
     }
   })()
 }
 
-const DeviceButtons = ({disabled, start}) => {
-  const [value,setValue] = useState("")
-  const [canStart,setCanStart] = useState(false)
+const DeviceButtons = ({ disabled, start }) => {
+  const [value, setValue] = useState("")
+  const [canStart, setCanStart] = useState(false)
   const [canResume, setCanResume] = useState(false)
 
-  useEffect(()=>{
-    setCanStart(value!=="" && !disabled)
+  useEffect(() => {
+    setCanStart(value !== "" && !disabled)
   }, [value, disabled])
 
   const onError = (text) => {
@@ -93,42 +93,51 @@ const DeviceButtons = ({disabled, start}) => {
   }
 
   return <div className="container">
-    <div className="row">
+    <div className="row p-1">
+      <FindMaterial
+        onFound={({ path }) => {
+          if (!path){
+            return
+          }
+          setValue(path.replace(/[\r\n \t]/g, ""))
+        }}
+        disabled={disabled}
+      />
+    </div>
+    <div className="row p-1">
       <textarea
         rows={5}
         placeholder="path"
         value={value}
         className="col"
         disabled={disabled}
-        onChange={({target}) => {setValue(target.value.replace(/[\r\n \t]/g,""))}}
-        />
+        onChange={({ target }) => { setValue(target.value.replace(/[\r\n \t]/g, "")) }}
+      />
     </div>
-    <div className="row">
-      <button 
-        className="btn btn-success" 
+    <div className="row p-1">
+      <button
+        className="btn btn-success"
         disabled={!canStart}
         onClick={() => {
           let resuming = false
-          if (canResume){
-            if (!window.confirm("Este material já tem imagem. Deseja continuar a cópia?")) {return}
-            if (!window.confirm("Tem certeza? Conferiu se é o mesmo material?")) 
-            {return}
-            if (!window.confirm("Conferiu se os arquivos desta pasta não estão no lugar errado?")) 
-            {return}
-            resuming=true
+          if (canResume) {
+            if (!window.confirm("Este material já tem imagem. Deseja continuar a cópia?")) { return }
+            if (!window.confirm("Tem certeza? Conferiu se é o mesmo material?")) { return }
+            if (!window.confirm("Conferiu se os arquivos desta pasta não estão no lugar errado?")) { return }
+            resuming = true
           }
-          start({path:value, resuming, onError})
-        }}>{canResume?"Resume":"Start"}
-        </button>
+          start({ path: value, resuming, onError })
+        }}>{canResume ? "Resume" : "Start"}
+      </button>
     </div>
   </div>
 }
 
 const spinner = <i className="fa fa-spinner fa-spin"></i>
 
-const DevicesDetail = ({Devname,Size,PartTableType,PartTableUUID,Vendor,Model,SerialShort,FsUUID,Error,Running,Progress}) => (
+const DevicesDetail = ({ Devname, Size, PartTableType, PartTableUUID, Vendor, Model, SerialShort, FsUUID, Error, Running, Progress }) => (
   <Fragment>
-    <h4>{Devname} {Running?spinner:""}</h4>
+    <h4>{Devname} {Running ? spinner : ""}</h4>
     <div>Size: {Size}</div>
     <div>PartTableType: {PartTableType}</div>
     <div>PartTableUUID: {PartTableUUID}</div>
@@ -137,9 +146,37 @@ const DevicesDetail = ({Devname,Size,PartTableType,PartTableUUID,Vendor,Model,Se
     <div>SerialShort: {SerialShort}</div>
     <div>FsUUID: {FsUUID}</div>
     <div>Progress: {Progress}</div>
-    {Error?<div>Error:{JSON.stringify(Error)}</div>:""}
+    {Error ? <div>Error:{JSON.stringify(Error)}</div> : ""}
   </Fragment>
 )
 
+const FindMaterial = ({ onFound, disabled }) => {
+  const [matnum, setMatnum] = useState("")
+  return <div className="input-group">
+    <input
+      className="form-control"
+      placeholder="Ex: M190001"
+      value={matnum}
+      disabled={disabled}
+      onChange={({ target }) => { setMatnum(target.value.replace(/[\r\n \t]/g, "")) }}
+    />
+    <div className="input-group-append">
+      <button
+        className="btn btn-outline-secondary"
+        disabled={disabled}
+        onClick={() => goFind({ matnum, onFound })}>
+        Find
+          </button>
+    </div>
+  </div>
+}
+
+const goFind = ({ matnum, onFound }) => {
+  (async () => {
+    const resp = await fetch(`/find/${matnum}`)
+    const json = await resp.json()
+    onFound(json)
+  })()
+}
 
 export default App;

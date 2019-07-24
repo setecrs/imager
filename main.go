@@ -157,7 +157,17 @@ func (cnf *Config) findMaterialHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("could not decode parameter from request: material"))
 	}
-	log.Println("findMaterial", material)
+	data := struct {
+		Path string `json:"path"`
+	}{
+		material,
+	}
+	err := json.NewEncoder(w).Encode(&data)
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
 
 func (cnf *Config) udevHandler(w http.ResponseWriter, r *http.Request) {
