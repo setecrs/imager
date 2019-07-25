@@ -11,6 +11,8 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/pkg/errors"
+
 	"github.com/gorilla/mux"
 )
 
@@ -30,7 +32,8 @@ type Device struct {
 }
 
 type Config struct {
-	Devices map[string]*Device
+	Devices    map[string]*Device
+	GraphqlURL string
 }
 
 func main() {
@@ -45,6 +48,8 @@ func main() {
 	if s, ok := os.LookupEnv("PORT"); ok {
 		port = s
 	}
+	cnf.GraphqlURL = os.Getenv("GRAPHQL_URL")
+
 	r := mux.NewRouter()
 	r.HandleFunc("/", cnf.udevHandler)
 	go http.ListenAndServe(udevListen, r)
@@ -75,6 +80,7 @@ func (cnf *Config) startHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	b, err := ioutil.ReadAll(r.Body)
 	if err != nil {
+		log.Println(err)
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "could not read body request: %v", err)
 		return
@@ -84,6 +90,7 @@ func (cnf *Config) startHandler(w http.ResponseWriter, r *http.Request) {
 	}{}
 	err = json.Unmarshal(b, &data)
 	if err != nil {
+		log.Println(err)
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "could not parse json body: %v", err)
 		return
@@ -145,6 +152,7 @@ func (cnf *Config) listDevicesHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "error in encodin json: %v", err)
 		return
 	}
 	w.Write(b)
@@ -156,16 +164,75 @@ func (cnf *Config) findMaterialHandler(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("could not decode parameter from request: material"))
+		return
+	}
+	q := fmt.Sprintf(`query{
+		board(title:"%s"){
+		  lists{
+			card(title:"%s"){
+			  title
+			  customFields{
+				customField{name}
+				value
+			  }
+			}
+		  }
+		}
+	  }
+	`, "Materiais", material)
+	d := struct {
+		Data struct {
+			Board struct {
+				Lists []struct {
+					Card struct {
+						Title        string
+						CustomFields []struct {
+							CustomField struct {
+								Name string
+							}
+							Value string
+						}
+					}
+				}
+			}
+		}
+		Errors []struct {
+			Message string
+		}
+	}{}
+	err := cnf.query(q, &d)
+	if err != nil {
+		log.Printf("error in query: %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "error in query: %v", err)
+		return
+	}
+	if len(d.Errors) > 0 {
+		log.Println(err)
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "graphql error: %v", d.Errors[0].Message)
+		return
+	}
+	result := ""
+	for _, l := range d.Data.Board.Lists {
+		for _, cf := range l.Card.CustomFields {
+			if cf.CustomField.Name == "path" {
+				if cf.Value != "" {
+					result = cf.Value
+				}
+			}
+		}
 	}
 	data := struct {
 		Path string `json:"path"`
 	}{
-		material,
+		result,
 	}
-	err := json.NewEncoder(w).Encode(&data)
+	err = json.NewEncoder(w).Encode(&data)
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "error encoding json: %v", err)
 		return
 	}
 }
@@ -200,4 +267,24 @@ func (cnf *Config) processDevice(d Device) {
 	default:
 		log.Printf("action not known: '%s'\n", d.Action)
 	}
+}
+
+func (cnf Config) query(q string, v interface{}) error {
+	if cnf.GraphqlURL == "" {
+		return fmt.Errorf("GRAPHQL_URL not set")
+	}
+	r, err := http.Post(cnf.GraphqlURL, "application/graphql", strings.NewReader(q))
+	if err != nil {
+		return errors.Wrap(err, "error doing http.Post")
+	}
+	defer r.Body.Close()
+	b, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return errors.Wrap(err, "error reading body")
+	}
+	err = json.Unmarshal(b, v)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("error decoding json: %v, q:%v", string(b), q))
+	}
+	return nil
 }
