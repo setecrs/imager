@@ -19,7 +19,7 @@ RUN CGO_ENABLED=0 go build -o /go/bin/notify .
 FROM alpine:edge
 ENV GRAPHQL_URL http://wekan-hooks-noauth
 ENV UDEV_LISTEN localhost:8080
-ENV PORT 80
+ENV LISTEN 0.0.0.0:80
 EXPOSE 80
 
 COPY --from=gobuilder /go/bin/imager /root/imager
@@ -41,4 +41,4 @@ COPY 99-imager-notify.rules .
 COPY install.sh .
 RUN ./install.sh
 
-CMD imager
+CMD ./imager

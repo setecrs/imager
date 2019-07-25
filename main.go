@@ -44,9 +44,9 @@ func main() {
 	if s, ok := os.LookupEnv("UDEV_LISTEN"); ok {
 		udevListen = s
 	}
-	port := "localhost:8081"
-	if s, ok := os.LookupEnv("PORT"); ok {
-		port = s
+	listen := "localhost:8081"
+	if s, ok := os.LookupEnv("LISTEN"); ok {
+		listen = s
 	}
 	cnf.GraphqlURL = os.Getenv("GRAPHQL_URL")
 
@@ -62,7 +62,7 @@ func main() {
 	r2.HandleFunc("/devices", cnf.listDevicesHandler).Methods("GET")
 	r2.HandleFunc("/find/{material}", cnf.findMaterialHandler).Methods("GET")
 	r2.PathPrefix("/").Handler(http.FileServer(http.Dir("app/build")))
-	log.Fatal(http.ListenAndServe(port, r2))
+	log.Fatal(http.ListenAndServe(listen, r2))
 }
 func (cnf *Config) startHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
