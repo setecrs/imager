@@ -1,10 +1,7 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -125,23 +122,7 @@ func saveCommands(commands []*exec.Cmd, outPath string) error {
 	}
 	defer out.Close()
 	for _, cmd := range commands {
-		var b bytes.Buffer
-		cmd.Stdout = &b
-		cmd.Stderr = &b
-		err := cmd.Start()
-		_, err = io.Copy(out, bufio.NewReader(&b))
-		if err != nil {
-			return err
-		}
-		err = cmd.Wait()
-		if err != nil {
-			if _, ok := err.(*exec.ExitError); ok {
-				// ignore exit status != 0
-			} else {
-				return errors.Wrap(err, "error executing command")
-			}
-		}
-		_, err = io.Copy(out, bufio.NewReader(&b))
+		err := combinedOutput(cmd, out)
 		if err != nil {
 			return err
 		}
