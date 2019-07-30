@@ -141,19 +141,30 @@ func ddrescue(device, outPath string, totalSize int64) (progress chan string, er
 	progress = make(chan string) // will close after end is done
 	go func(progress chan string, end <-chan error) {
 		defer close(progress)
+		getMsg := func() (string, error) {
+			stat, err := os.Stat(outPath)
+			gib := float32(1024 * 1024 * 1024)
+			current := float32(stat.Size())
+			percent := current / float32(totalSize) * 100.0
+			msg := fmt.Sprintf("%1.0f%% (%1.0f GiB/ %1.0f GiB) %1.0f bytes", percent, current/gib, float32(totalSize)/gib, current)
+			return msg, err
+		}
 		for {
 			select {
 			case err := <-end:
 				if err != nil {
 					progress <- err.Error()
+					return
 				}
+				msg, err := getMsg()
+				if err != nil {
+					progress <- err.Error()
+					return
+				}
+				progress <- msg
 				return
 			case <-time.After(100 * time.Millisecond):
-				stat, err := os.Stat(outPath)
-				gib := float32(1024 * 1024 * 1024)
-				current := float32(stat.Size())
-				percent := current / float32(totalSize) * 100.0
-				msg := fmt.Sprintf("%1.0f%% (%1.0f GiB/ %1.0f GiB) %1.0f bytes", percent, current/gib, float32(totalSize)/gib, current)
+				msg, err := getMsg()
 				if err != nil {
 					progress <- err.Error()
 					continue
