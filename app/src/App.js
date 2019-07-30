@@ -144,7 +144,7 @@ const spinner = <i className="fa fa-spinner fa-spin"></i>
 const DevicesDetail = ({ Devname, Size, PartTableType, PartTableUUID, Vendor, Model, SerialShort, FsUUID, Error, Running, Progress }) => (
   <Fragment>
     <h4>{Devname} {Running ? spinner : ""}</h4>
-    <div>Size: {Size} sectors ({(Number(Size)/2/1024/1024).toFixed(2)} GiB)</div>
+    <div>Size: {Number(Size)*512} bytes ({(Number(Size)/2/1024/1024).toFixed(2)} GiB)</div>
     <div>PartTableType: {PartTableType}</div>
     <div>PartTableUUID: {PartTableUUID}</div>
     <div>Vendor: {Vendor}</div>
