@@ -63,19 +63,17 @@ const updateDevices = setDevices => {
   })()
 }
 
-const startImager = ({ path, fulldev, resuming, onError }) => {
-  (async () => {
-    const shortdev = fulldev.split("/dev/").pop()
-    const url = `/devices/${shortdev}/${resuming ? "resume" : "start"}`
-    const resp = await fetch(url, {
-      method: "POST",
-      body: JSON.stringify({ path })
-    })
-    const text = await resp.text()
-    if (text) {
-      onError(text)
-    }
-  })()
+const startImager = async ({ path, fulldev, resuming }) => {
+  const shortdev = fulldev.split("/dev/").pop()
+  const url = `/devices/${shortdev}/${resuming ? "resume" : "start"}`
+  const resp = await fetch(url, {
+    method: "POST",
+    body: JSON.stringify({ path })
+  })
+  const text = await resp.text()
+  if (text) {
+    throw text
+  }
 }
 
 const DeviceButtons = ({ disabled, start }) => {
@@ -85,11 +83,14 @@ const DeviceButtons = ({ disabled, start }) => {
 
   useEffect(() => {
     setCanStart(value !== "" && !disabled)
+    setCanResume(false)
   }, [value, disabled])
 
   const onError = (text) => {
     alert(text)
-    setCanResume(true)
+    if (text.trim().endsWith("already exists")){
+      setCanResume(true)
+    }
   }
 
   return <div className="container">
@@ -118,15 +119,20 @@ const DeviceButtons = ({ disabled, start }) => {
       <button
         className="btn btn-success"
         disabled={!canStart}
-        onClick={() => {
-          let resuming = false
-          if (canResume) {
-            if (!window.confirm("Este material já tem imagem. Deseja continuar a cópia?")) { return }
-            if (!window.confirm("Tem certeza? Conferiu se é o mesmo material?")) { return }
-            if (!window.confirm("Conferiu se os arquivos desta pasta não estão no lugar errado?")) { return }
-            resuming = true
+        onClick={async () => {
+          try {
+            let resuming = false
+            if (canResume) {
+              if (!window.confirm("Este material já tem imagem. Deseja continuar a cópia?")) { return }
+              if (!window.confirm("Tem certeza? Conferiu se é o mesmo material?")) { return }
+              if (!window.confirm("Conferiu se os arquivos desta pasta não estão no lugar errado?")) { return }
+              resuming = true
+            }
+            await start({ path: value, resuming, onError })
+            setCanResume(false)
+          } catch (e) {
+            onError(e)
           }
-          start({ path: value, resuming, onError })
         }}>{canResume ? "Resume" : "Start"}
       </button>
     </div>
@@ -138,7 +144,7 @@ const spinner = <i className="fa fa-spinner fa-spin"></i>
 const DevicesDetail = ({ Devname, Size, PartTableType, PartTableUUID, Vendor, Model, SerialShort, FsUUID, Error, Running, Progress }) => (
   <Fragment>
     <h4>{Devname} {Running ? spinner : ""}</h4>
-    <div>Size: {Size}</div>
+    <div>Size: {Size} sectors ({(Number(Size)/2/1024/1024).toFixed(2)} GiB)</div>
     <div>PartTableType: {PartTableType}</div>
     <div>PartTableUUID: {PartTableUUID}</div>
     <div>Vendor: {Vendor}</div>
