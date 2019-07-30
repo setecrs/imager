@@ -42,7 +42,6 @@ const App = () => {
                   path,
                   fulldev: x.Devname,
                   resuming,
-                  onError,
                 })}
               />
             </div>
