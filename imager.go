@@ -143,6 +143,9 @@ func ddrescue(device, outPath string, totalSize int64) (progress chan string, er
 		defer close(progress)
 		getMsg := func() (string, error) {
 			stat, err := os.Stat(outPath)
+			if err != nil {
+				return "", err
+			}
 			gib := float32(1024 * 1024 * 1024)
 			current := float32(stat.Size())
 			percent := current / float32(totalSize) * 100.0
