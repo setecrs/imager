@@ -1,13 +1,9 @@
-FROM alpine:edge as npmbuilder
-RUN apk add --no-cache \
-      nodejs \
-      nodejs-npm
-
+FROM node:12.6-alpine as npmbuilder
 WORKDIR /root/app
 COPY app/package.json .
-RUN npm install
+RUN yarn install --frozen-lockfile 
 COPY app/ .
-RUN npm run build
+RUN yarn run build
 
 FROM golang:alpine as gobuilder
 WORKDIR /go/src/github.com/setecrs/imager
