@@ -31,6 +31,7 @@ type Device struct {
 	Error         string
 	Running       bool
 	Progress      string
+	Path          string
 	AddTime       time.Time
 }
 
@@ -105,6 +106,7 @@ func (cnf *Config) startHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	totalSize *= 512
+	d.Path = data.Path
 	d.Running = true
 	d.Error = ""
 	progress, chanErr, err := startImager(d.Devname, data.Path, int64(totalSize), resuming)

@@ -43,6 +43,7 @@ const App = () => {
                 Error={x.Error}
                 Running={x.Running}
                 Progress={x.Progress}
+                Path={x.Path}
                 AddTime={x.AddTime}
               />
               <hr />
@@ -156,7 +157,7 @@ const DeviceButtons = ({ disabled, start }) => {
 
 const spinner = <i className="fa fa-spinner fa-spin"></i>
 
-const DevicesDetail = ({ Devname, Size, PartTableType, PartTableUUID, Vendor, Model, SerialShort, FsUUID, Error, Running, Progress, AddTime }) => (
+const DevicesDetail = ({ Devname, Size, PartTableType, PartTableUUID, Vendor, Model, SerialShort, FsUUID, Error, Running, Progress, Path, AddTime }) => (
   <Fragment>
     <h4>{Devname} {Running ? spinner : ""}</h4>
     <h5>{AddTime.split(".")[0]} </h5>
@@ -168,6 +169,7 @@ const DevicesDetail = ({ Devname, Size, PartTableType, PartTableUUID, Vendor, Mo
     <div>SerialShort: {SerialShort}</div>
     <div>FsUUID: {FsUUID}</div>
     <div>Progress: {Progress}</div>
+    <div>Path: {Path} </div>
     {Error ? <div>Error:{JSON.stringify(Error)}</div> : ""}
   </Fragment>
 )
