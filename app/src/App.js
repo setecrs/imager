@@ -2,10 +2,12 @@ import React, { Fragment, useState, useEffect } from 'react';
 
 const App = () => {
   const [devices, setDevices] = useState([])
+  const [connected, setConnected] = useState(false)
+
   useEffect(() => {
     const ms = 1000
     const interval = setInterval(() => {
-      updateDevices(setDevices)
+      updateDevices({ setDevices, setConnected })
     }, ms)
     return () => { clearInterval(interval) }
   }, []) // use [] to run effect only once
@@ -15,6 +17,13 @@ const App = () => {
         <h3>Total devices: {devices.length}
         </h3>
       </div>
+      {(connected) ?
+        <Fragment />
+        :
+        <div className="row">
+          <span style={{ color: 'red' }}>not connected</span>
+        </div>
+      }
     </div>
     <div className="container">
       <div className="row">
@@ -55,11 +64,17 @@ const App = () => {
 }
 
 
-const updateDevices = setDevices => {
+const updateDevices = ({ setDevices, setConnected }) => {
   (async () => {
-    const resp = await fetch('/devices/')
-    const json = await resp.json()
-    setDevices(json)
+    try {
+      const resp = await fetch('/devices/')
+      const json = await resp.json()
+      setConnected(true)
+      setDevices(json)
+    } catch (e) {
+      setConnected(false)
+      throw e
+    }
   })()
 }
 
@@ -88,7 +103,7 @@ const DeviceButtons = ({ disabled, start }) => {
 
   const onError = (text) => {
     alert(text)
-    if (text.trim().endsWith("already exists")){
+    if (text.trim().endsWith("already exists")) {
       setCanResume(true)
     }
   }
@@ -97,7 +112,7 @@ const DeviceButtons = ({ disabled, start }) => {
     <div className="row p-1">
       <FindMaterial
         onFound={({ path }) => {
-          if (!path){
+          if (!path) {
             return
           }
           setValue(path.replace(/[\r\n \t]/g, ""))
