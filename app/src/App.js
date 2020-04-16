@@ -28,7 +28,7 @@ const App = () => {
     <div className="container">
       <div className="row">
         {/* <ul className='list-group'> */}
-        {devices.sort((x, y) => x.Devname > y.Devname ? 1 : -1).map(x => (
+        {devices.sort((x, y) => x.AddTime > y.AddTime ? 1 : -1).map(x => (
           <div key={x.Devname} className='col-12 col-md-6 p-3 border rounded'>
             <div className="container">
               <DevicesDetail
