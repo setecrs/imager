@@ -36,9 +36,8 @@ RUN apk add --no-cache \
       hdparm \
       ddrescue
 
-WORKDIR /root/
-COPY 99-imager-notify.rules .
-COPY install.sh .
-RUN ./install.sh
+COPY entrypoint.sh /
+ENTRYPOINT [ "/entrypoint.sh" ]
 
+WORKDIR /root/
 CMD ./imager

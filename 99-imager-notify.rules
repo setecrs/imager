@@ -1,1 +1,0 @@
-ACTION=="add|change|remove", SUBSYSTEM=="block", DRIVER=="", RUN+="/root/notify http://localhost:8080 $attr{size}"
