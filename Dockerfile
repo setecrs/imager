@@ -18,10 +18,6 @@ ENV UDEV_LISTEN localhost:8080
 ENV LISTEN 0.0.0.0:80
 EXPOSE 80
 
-COPY --from=gobuilder /go/bin/imager /root/imager
-COPY --from=gobuilder /go/bin/notify /root/notify
-COPY --from=npmbuilder /root/app/build /root/app/build
-
 RUN apk add --no-cache \
       git \
       smartmontools \
@@ -31,6 +27,10 @@ RUN apk add --no-cache \
       tmux \
       hdparm \
       ddrescue
+
+COPY --from=gobuilder /go/bin/imager /root/imager
+COPY --from=gobuilder /go/bin/notify /root/notify
+COPY --from=npmbuilder /root/app/build /root/app/build
 
 COPY entrypoint.sh /
 ENTRYPOINT [ "/entrypoint.sh" ]
