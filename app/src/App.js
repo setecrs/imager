@@ -96,6 +96,7 @@ const DeviceButtons = ({ disabled, start }) => {
   const [value, setValue] = useState("")
   const [canStart, setCanStart] = useState(false)
   const [canResume, setCanResume] = useState(false)
+  const [findError, setFindError] = useState("")
 
   useEffect(() => {
     setCanStart(value !== "" && !disabled)
@@ -119,7 +120,13 @@ const DeviceButtons = ({ disabled, start }) => {
           setValue(path.replace(/[\r\n \t]/g, ""))
         }}
         disabled={disabled}
+        setFindError={setFindError}
       />
+      {(findError)?
+      <span style={{color: 'red'}}>{findError}</span>
+      :
+      <Fragment />
+      }
     </div>
     <div className="row p-1">
       <textarea
@@ -136,6 +143,7 @@ const DeviceButtons = ({ disabled, start }) => {
         className="btn btn-success"
         disabled={!canStart}
         onClick={async () => {
+          setFindError("")
           try {
             let resuming = false
             if (canResume) {
@@ -174,7 +182,7 @@ const DevicesDetail = ({ Devname, Size, PartTableType, PartTableUUID, Vendor, Mo
   </Fragment>
 )
 
-const FindMaterial = ({ onFound, disabled }) => {
+const FindMaterial = ({ onFound, disabled, setFindError }) => {
   const [matnum, setMatnum] = useState("")
   return <div className="input-group">
     <input
@@ -188,18 +196,23 @@ const FindMaterial = ({ onFound, disabled }) => {
       <button
         className="btn btn-outline-secondary"
         disabled={disabled}
-        onClick={() => goFind({ matnum, onFound })}>
+        onClick={() => goFind({ matnum, onFound, setFindError})}>
         Find
           </button>
     </div>
   </div>
 }
 
-const goFind = ({ matnum, onFound }) => {
+const goFind = ({ matnum, onFound, setFindError}) => {
   (async () => {
-    const resp = await fetch(`/find/${matnum}`)
-    const json = await resp.json()
-    onFound(json)
+    setFindError("")
+    try{
+      const resp = await fetch(`/find/${matnum}`)
+      const json = await resp.json()
+      onFound(json)
+    } catch (e){
+      setFindError("Error searching: " + e.toString())
+    }
   })()
 }
 
