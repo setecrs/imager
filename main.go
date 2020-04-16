@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/pkg/errors"
@@ -16,6 +17,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
+//Device struct holds information provided by UDEV
 type Device struct {
 	Devname       string
 	Action        string
@@ -29,6 +31,7 @@ type Device struct {
 	Error         string
 	Running       bool
 	Progress      string
+	AddTime       time.Time
 }
 
 type Config struct {
@@ -261,6 +264,7 @@ func (cnf *Config) processDevice(d Device) {
 	}
 	switch d.Action {
 	case "add", "change":
+		d.AddTime = time.Now()
 		cnf.Devices[d.Devname] = &d
 	case "remove":
 		delete(cnf.Devices, d.Devname)

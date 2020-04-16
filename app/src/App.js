@@ -34,6 +34,7 @@ const App = () => {
                 Error={x.Error}
                 Running={x.Running}
                 Progress={x.Progress}
+                AddTime={x.AddTime}
               />
               <hr />
               <DeviceButtons
@@ -140,10 +141,11 @@ const DeviceButtons = ({ disabled, start }) => {
 
 const spinner = <i className="fa fa-spinner fa-spin"></i>
 
-const DevicesDetail = ({ Devname, Size, PartTableType, PartTableUUID, Vendor, Model, SerialShort, FsUUID, Error, Running, Progress }) => (
+const DevicesDetail = ({ Devname, Size, PartTableType, PartTableUUID, Vendor, Model, SerialShort, FsUUID, Error, Running, Progress, AddTime }) => (
   <Fragment>
     <h4>{Devname} {Running ? spinner : ""}</h4>
-    <div>Size: {Number(Size)*512} bytes ({(Number(Size)/2/1024/1024).toFixed(2)} GiB)</div>
+    <h5>{AddTime.split(".")[0]} </h5>
+    <div>Size: {Number(Size) * 512} bytes ({(Number(Size) / 2 / 1024 / 1024).toFixed(2)} GiB)</div>
     <div>PartTableType: {PartTableType}</div>
     <div>PartTableUUID: {PartTableUUID}</div>
     <div>Vendor: {Vendor}</div>
