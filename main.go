@@ -41,6 +41,7 @@ type Config struct {
 }
 
 func main() {
+	log.Println("Starting Imager")
 	cnf := Config{
 		Devices: make(map[string]*Device),
 	}
@@ -268,8 +269,10 @@ func (cnf *Config) processDevice(d Device) {
 	case "add", "change":
 		d.AddTime = time.Now()
 		cnf.Devices[d.Devname] = &d
+		log.Printf("Add device:    %s\n", d.Devname)
 	case "remove":
 		delete(cnf.Devices, d.Devname)
+		log.Printf("Remove device: %s\n", d.Devname)
 	default:
 		log.Printf("action not known: '%s'\n", d.Action)
 	}
