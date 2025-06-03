@@ -1,4 +1,4 @@
-FROM node:12.6-alpine as npmbuilder
+FROM node:24-alpine3.21 as npmbuilder
 WORKDIR /root/app
 COPY app/package.json .
 RUN yarn install --frozen-lockfile 
